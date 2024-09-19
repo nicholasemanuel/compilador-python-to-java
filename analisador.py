@@ -81,11 +81,18 @@ caminho_arquivo = "arquivo.java"
 tabela_tokens, tabela_simbolos = analisar_arquivo_java(caminho_arquivo)
 
 # Exibir a tabela de tokens
-print("Tabela de Tokens:")
+print("-" * 70)
+print(f"| {'Tabela de Tokens:':<66} |")
+print("-" * 70)
 for token, tipo_token in tabela_tokens:
-    print(f'Token: {token}, Tipo: {tipo_token}')
+    print(f'|Token: {token:<20}| Tipo: {tipo_token:<33}|')
+print("-" * 70)
+print(" " * 70)
 
 # Exibir a tabela de símbolos
-print("\nTabela de Símbolos:")
+print("-" * 70)
+print(f"| {'Tabela de Símbolos:':<66} |")
+print("-" * 70)
 for simbolo, detalhes in tabela_simbolos.items():
-    print(f'Símbolo: {simbolo}, Linha: {detalhes["linha"]}, Tipo: {detalhes["tipo"]}')
+    print(f"| Símbolo: {simbolo:<10}| Linha: {detalhes['linha']:<10}| Tipo: {detalhes['tipo']:<20} |")  
+print("-" * 70)
