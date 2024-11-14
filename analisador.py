@@ -20,9 +20,9 @@ OPERADORES_LOGICOS = [
     "==", "!=", "<", ">", "<=", ">=", "&&", "||", "!", "&", "|", "^", "~", "<<", ">>", ">>>"
 ]
 
-# Definição de delimitadores (parênteses, chaves e vírgulas)
+# Definição de delimitadores (parênteses, chaves, vírgulas, ponto e vírgula e dois pontos)
 DELIMITADORES = [
-    "(", ")", "{", "}", ","
+    "(", ")", "{", "}", ",", ";", ":"
 ]
 
 # Definição de tipos de dados em Java
@@ -33,6 +33,7 @@ EXPRESSOES_REGULARES = {
     'palavra_chave': r'\b(?:' + '|'.join(PALAVRAS_CHAVE) + r')\b',
     'identificador': r'\b[a-zA-Z_][a-zA-Z0-9_]*\b',
     'numero': r'\b\d+(\.\d+)?\b',
+    'string': r'"[^"]*"',  # Captura strings entre aspas
     'operador_aritmetico': r'|'.join(re.escape(op) for op in OPERADORES_ARITMETICOS),
     'operador_logico': r'|'.join(re.escape(op) for op in OPERADORES_LOGICOS),
     'delimitador': r'|'.join(re.escape(d) for d in DELIMITADORES)
@@ -47,45 +48,74 @@ def tokenizar_linha_sem_duplicacao(linha):
     for match in re.finditer(PADRAO_GERAL, linha):
         tipo_token = match.lastgroup
         token = match.group(tipo_token)
-        tokens.append((token, tipo_token))
-    
+        if tipo_token == 'string':
+            conteudo_string = token.strip('"')
+            elementos = re.findall(r'\w+|[^\w\s]', conteudo_string)
+            for elemento in elementos:
+                tokens.append((elemento, 'identificador'))
+        else:
+            tokens.append((token, tipo_token))
     return tokens
 
-# Função principal para processar o arquivo Java e gerar a tabela de tokens e símbolos
+# Função principal para processar o arquivo Java e gerar a lista de tokens e tabela de símbolos
 def analisar_arquivo_java(caminho_arquivo):
-    tabela_tokens = []
+    lista_tokens = []
     tabela_simbolos = {}
-    tipo_atual = None  # Para armazenar o tipo atual enquanto processamos a linha
+    tipo_atual = None
+    contador_identificador = 1
 
     with open(caminho_arquivo, 'r') as arquivo:
-        for num_linha, linha in enumerate(arquivo, 1):  # Adicionando número da linha para a tabela de símbolos
+        for num_linha, linha in enumerate(arquivo, 1):
             tokens = tokenizar_linha_sem_duplicacao(linha)
             for token, tipo_token in tokens:
-                # Evitar duplicação de tokens na tabela de tokens
-                if (token, tipo_token) not in tabela_tokens:
-                    tabela_tokens.append((token, tipo_token))
-                
-                # Verifica se o token atual é um tipo de dado
+                lista_tokens.append((token, tipo_token))
+
                 if tipo_token == 'palavra_chave' and token in TIPOS_DADOS:
-                    tipo_atual = token  # Define o tipo atual
+                    tipo_atual = token
                 elif tipo_token == 'identificador':
-                    # Se for identificador e há um tipo de dado associado, atualiza a tabela de símbolos
                     if token not in tabela_simbolos:
-                        tabela_simbolos[token] = {'linha': num_linha, 'tipo': tipo_atual or 'desconhecido'}
-                    tipo_atual = None  # Redefine o tipo após associar a um identificador
-    
-    return tabela_tokens, tabela_simbolos
+                        tabela_simbolos[token] = {
+                            'linhas': [num_linha],
+                            'tipo': f'identificador_{contador_identificador}'
+                        }
+                        contador_identificador += 1
+                    else:
+                        tabela_simbolos[token]['linhas'].append(num_linha)
+                    tipo_atual = None
+
+    return lista_tokens, tabela_simbolos
+
+# Função para exibir a lista de tokens e a tabela de símbolos
+def exibir_tabelas_adaptativas(lista_tokens, tabela_simbolos):
+    # Calcular largura das colunas para a lista de tokens
+    largura_token = max(len(str(token)) for token, _ in lista_tokens) + 2
+    largura_tipo = max(len(str(tipo)) for _, tipo in lista_tokens) + 2
+    largura_total_tokens = largura_token + largura_tipo + 6
+
+    print("-" * largura_total_tokens)
+    print(f"| {'Lista de Tokens:':^{largura_total_tokens - 2}} |")
+    print("-" * largura_total_tokens)
+    for token, tipo_token in lista_tokens:
+        print(f'|Token: {token:<{largura_token}}| Tipo: {tipo_token:<{largura_tipo}}|')
+    print("-" * largura_total_tokens)
+
+    # Calcular largura das colunas para a tabela de símbolos
+    largura_simbolo = max(len(simbolo) for simbolo in tabela_simbolos) + 2
+    largura_linhas = max(len(", ".join(map(str, detalhes['linhas']))) for detalhes in tabela_simbolos.values()) + 2
+    largura_tipo = max(len(detalhes['tipo']) for detalhes in tabela_simbolos.values()) + 2
+    largura_total_simbolos = largura_simbolo + largura_linhas + largura_tipo + 10
+
+    print("-" * largura_total_simbolos)
+    print(f"| {'Tabela de Símbolos:':^{largura_total_simbolos - 2}} |")
+    print("-" * largura_total_simbolos)
+    for simbolo, detalhes in tabela_simbolos.items():
+        linhas = ", ".join(map(str, detalhes['linhas']))
+        print(f"| Símbolo: {simbolo:<{largura_simbolo}}| Linhas: {linhas:<{largura_linhas}}| Tipo: {detalhes['tipo']:<{largura_tipo}} |")
+    print("-" * largura_total_simbolos)
 
 # Exemplo de uso
-caminho_arquivo = "arquivo.java"
-tabela_tokens, tabela_simbolos = analisar_arquivo_java(caminho_arquivo)
+caminho_arquivo = "estrutura.java"
+lista_tokens, tabela_simbolos = analisar_arquivo_java(caminho_arquivo)
 
-# Exibir a tabela de tokens
-print("Tabela de Tokens:")
-for token, tipo_token in tabela_tokens:
-    print(f'Token: {token}, Tipo: {tipo_token}')
-
-# Exibir a tabela de símbolos
-print("\nTabela de Símbolos:")
-for simbolo, detalhes in tabela_simbolos.items():
-    print(f'Símbolo: {simbolo}, Linha: {detalhes["linha"]}, Tipo: {detalhes["tipo"]}')
+# Exibir a lista de tokens e a tabela de símbolos
+exibir_tabelas_adaptativas(lista_tokens, tabela_simbolos)
